@@ -1,0 +1,87 @@
+<!doctype html>
+<html ng-app="Demo" ng-controller="AppController">
+<head>
+	<meta charset="utf-8" />
+	<title>Logging Client-Side Errors With AngularJS And TraceKit</title>
+	<style type="text/css">
+		a[ ng-click ] {
+			cursor: pointer ;
+			text-decoration: underline ;
+		}
+	</style>
+</head>
+<body>
+	<h1>Logging Client-Side Errors With AngularJS And TraceKit</h1>
+
+	<p><a ng-click="causeUnhandledError()">Cause Unhandled Error</a></p>
+	<p><a ng-click="causeTryCatchError()">Cause Try Catch Error</a></p>
+
+	<p><strong>Note:</strong> Look at the JavaScript console to see the errors being reported.</p>
+
+	<!-- Load jQuery and AngularJS. -->
+	<script
+		type="text/javascript"
+		src="./jquery/jquery-1.11.0.min.js">
+	</script>
+	<script
+		type="text/javascript"
+		src="./angularjs/angular.min.js">
+	</script>
+	<!-- TraceKit: https://github.com/csnover/TraceKit -->
+	<script
+		type="text/javascript"
+		src="./tracekit/tracekit.js">
+	</script>
+	<script type="text/javascript">
+
+		// First, register a subscriber for error reports
+		// Will send errorReport to server-side with Clog here
+		TraceKit.report.subscribe(function(errorReport) {
+		    var msg = 'msg: ' + errorReport.message + '\n\n';
+		    msg +="::::STACKTRACE::::\n"
+		    for(var i = 0; i < errorReport.stack.length; i++) {
+		        msg += "stack[" + i + "] " + errorReport.stack[i].url + ":" + errorReport.stack[i].line + "\n";
+		    }
+		    console.log(msg);
+		});
+
+		// Create an application module for demo.
+		var app = angular.module( "Demo", [] );
+
+		// By default, AngularJS will catch errors and log them to the Console
+		// Keep that behavior and add reporting to TraceKit
+		app.config(function ($provide) {
+	        $provide.decorator("$exceptionHandler", function ($delegate) {
+	            return function (exception, cause) {
+	                TraceKit.report(exception);
+	                $delegate(exception, cause);
+	            };
+	        });
+	    });
+
+		// Create methods to cause an error
+		app.controller("AppController", function( $scope ) {
+
+			$scope.causeUnhandledError = function() {
+				var x = z;
+			}
+
+			$scope.causeTryCatchError = function() {
+				try {
+					var x = y;
+				} catch (error) {
+					console.log("----error----");
+					console.log(error);
+					console.log("----error.stack----");
+					console.log(error.stack);
+					console.log("----TraceKit error----");
+					TraceKit.report(error);
+				}
+
+			};
+		});
+
+	</script>
+
+</body>
+</html>
